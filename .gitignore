@@ -1,0 +1,14 @@
+# Node.js specific
+node_modules/
+
+# Build files
+build/
+dist/
+
+# Environment configuration
+.env
+.env.local
+.env.*.local
+.env.test
+.env.production
+.env.development
