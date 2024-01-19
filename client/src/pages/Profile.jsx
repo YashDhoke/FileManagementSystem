@@ -75,11 +75,19 @@ export default function Profile() {
   const handleFileDelete = async (fileName) => {
     try {
       const storage = getStorage(app);
-      const storageRef = ref(storage, fileName);
+      const storageRef = ref(storage, currentUser.uid + '/' + fileName);
       await deleteObject(storageRef);
       fetchFiles(); // Refresh the file list after deletion
     } catch (error) {
       console.error('Error deleting file:', error);
+    }
+  };
+
+  const viewFile = async (file) => {
+    try {
+      window.open(file.url, '_blank');
+    } catch (error) {
+      console.error('Error opening file:', error);
     }
   };
 
@@ -120,17 +128,19 @@ export default function Profile() {
         </p>
       </div>
 
-      <div className='grid grid-cols-2 gap-4'>
+      <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
         {uploadedFiles.map((file, index) => (
-          <div
-            key={index}
-            className='bg-gray-200 p-4 rounded-md cursor-pointer hover:bg-gray-300'
-            onClick={() => window.open(file.url, '_blank')}
-          >
-            <span>{file.name}</span>
+          <div key={index} className='bg-gray-200 p-4 rounded-md cursor-pointer hover:bg-gray-300'>
+            <div className='text-lg font-semibold mb-2'>{file.name}</div>
+            <button
+              onClick={() => viewFile(file)}
+              className='text-blue-700 underline cursor-pointer'
+            >
+              View
+            </button>
             <button
               onClick={() => handleFileDelete(file.name)}
-              className='text-red-700 underline ml-2 cursor-pointer'
+              className='text-red-700 underline cursor-pointer'
             >
               Delete
             </button>
