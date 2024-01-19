@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { getStorage, ref, uploadBytesResumable } from 'firebase/storage';
 import { app } from '../firebase';
@@ -7,7 +7,9 @@ export default function Profile() {
   const fileRef = useRef(null);
   const { currentUser } = useSelector((state) => state.user);
   const [files, setFiles] = useState([]);
+  const [filePerc, setFilePerc] = useState(0);
   const [fileUploadError, setFileUploadError] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const handleFileUpload = async () => {
     try {
@@ -29,6 +31,7 @@ export default function Profile() {
           (snapshot) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             console.log('Upload progress:', progress);
+            setFilePerc(Math.round(progress));
           },
           (error) => {
             console.error('Error uploading file:', error);
@@ -37,6 +40,13 @@ export default function Profile() {
           () => {
             console.log('File uploaded successfully:', fileName);
             setFiles((prevFiles) => prevFiles.filter((prevFile) => prevFile !== file));
+            setFilePerc(0); // Reset progress after successful upload
+            setUploadSuccess(true);
+
+            // Reset upload success message after a few seconds
+            setTimeout(() => {
+              setUploadSuccess(false);
+            }, 3000);
           }
         );
       });
@@ -45,6 +55,14 @@ export default function Profile() {
       setFileUploadError(true);
     }
   };
+
+  // Cleanup function to clear files and reset progress when component unmounts
+  useEffect(() => {
+    return () => {
+      setFiles([]);
+      setFilePerc(0);
+    };
+  }, []);
 
   return (
     <div className='p-3 max-w-lg mx-auto'>
@@ -74,6 +92,10 @@ export default function Profile() {
           <span className='text-red-700'>
             Error uploading files (ensure the file sizes are within limits)
           </span>
+        ) : filePerc > 0 && filePerc < 100 ? (
+          <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
+        ) : uploadSuccess ? (
+          <span className='text-green-700'>Files uploaded successfully!</span>
         ) : (
           ''
         )}
