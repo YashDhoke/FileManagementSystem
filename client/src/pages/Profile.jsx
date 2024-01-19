@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { getStorage, ref, uploadBytesResumable } from 'firebase/storage';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, list, deleteObject } from 'firebase/storage';
 import { app } from '../firebase';
 
 export default function Profile() {
@@ -9,7 +9,28 @@ export default function Profile() {
   const [files, setFiles] = useState([]);
   const [filePerc, setFilePerc] = useState(0);
   const [fileUploadError, setFileUploadError] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  const fetchFiles = async () => {
+    try {
+      const storage = getStorage(app);
+      const storageRef = ref(storage, currentUser.uid);
+      const fileList = await list(storageRef);
+      const filesData = await Promise.all(
+        fileList.items.map(async (item) => {
+          const downloadURL = await getDownloadURL(item);
+          return { name: item.name, url: downloadURL };
+        })
+      );
+      setUploadedFiles(filesData);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles();
+  }, [currentUser]);
 
   const handleFileUpload = async () => {
     try {
@@ -22,7 +43,7 @@ export default function Profile() {
 
       // Iterate through each selected file and upload
       files.forEach(async (file) => {
-        const fileName = new Date().getTime() + '_' + file.name;
+        const fileName = currentUser.uid + '_' + new Date().getTime() + '_' + file.name;
         const storageRef = ref(storage, fileName);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -37,16 +58,11 @@ export default function Profile() {
             console.error('Error uploading file:', error);
             setFileUploadError(true);
           },
-          () => {
+          async () => {
             console.log('File uploaded successfully:', fileName);
-            setFiles((prevFiles) => prevFiles.filter((prevFile) => prevFile !== file));
+            setFiles([]);
             setFilePerc(0); // Reset progress after successful upload
-            setUploadSuccess(true);
-
-            // Reset upload success message after a few seconds
-            setTimeout(() => {
-              setUploadSuccess(false);
-            }, 3000);
+            fetchFiles(); // Refresh the file list
           }
         );
       });
@@ -56,50 +72,71 @@ export default function Profile() {
     }
   };
 
-  // Cleanup function to clear files and reset progress when component unmounts
-  useEffect(() => {
-    return () => {
-      setFiles([]);
-      setFilePerc(0);
-    };
-  }, []);
+  const handleFileDelete = async (fileName) => {
+    try {
+      const storage = getStorage(app);
+      const storageRef = ref(storage, fileName);
+      await deleteObject(storageRef);
+      fetchFiles(); // Refresh the file list after deletion
+    } catch (error) {
+      console.error('Error deleting file:', error);
+    }
+  };
 
   return (
-    <div className='p-3 max-w-lg mx-auto'>
-      <div>
-        <input
-          onChange={(e) => setFiles(Array.from(e.target.files))}
-          type='file'
-          ref={fileRef}
-          hidden
-          multiple
-        />
-        <button
-          onClick={() => fileRef.current.click()}
-          className='bg-slate-700 text-white rounded-lg p-2 uppercase text-sm hover:opacity-95 disabled:opacity-80 mx-6'
-        >
-          Select Files
-        </button>
-        <button
-          onClick={handleFileUpload}
-          className='bg-slate-700 text-white rounded-lg p-2 uppercase text-sm hover:opacity-95 disabled:opacity-80'
-        >
-          Upload Files
-        </button>
+    <div className='h-screen p-6'>
+      <div className='max-w-lg mx-auto'>
+        <div className='flex items-center space-x-4 mb-4'>
+          <input
+            onChange={(e) => setFiles(Array.from(e.target.files))}
+            type='file'
+            ref={fileRef}
+            hidden
+            multiple
+          />
+          <button
+            onClick={() => fileRef.current.click()}
+            className='bg-slate-700 text-white rounded-lg p-2 uppercase text-sm hover:opacity-95 disabled:opacity-80'
+          >
+            Select Files
+          </button>
+          <button
+            onClick={handleFileUpload}
+            className='bg-slate-700 text-white rounded-lg p-2 uppercase text-sm hover:opacity-95 disabled:opacity-80'
+          >
+            Upload Files
+          </button>
+        </div>
+        <p className='text-sm self-center mt-2'>
+          {fileUploadError ? (
+            <span className='text-red-700'>
+              Error uploading files (ensure the file sizes are within limits)
+            </span>
+          ) : filePerc > 0 && filePerc < 100 ? (
+            <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
+          ) : (
+            ''
+          )}
+        </p>
       </div>
-      <p className='text-sm self-center mt-2'>
-        {fileUploadError ? (
-          <span className='text-red-700'>
-            Error uploading files (ensure the file sizes are within limits)
-          </span>
-        ) : filePerc > 0 && filePerc < 100 ? (
-          <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
-        ) : uploadSuccess ? (
-          <span className='text-green-700'>Files uploaded successfully!</span>
-        ) : (
-          ''
-        )}
-      </p>
+
+      <div className='grid grid-cols-2 gap-4'>
+        {uploadedFiles.map((file, index) => (
+          <div
+            key={index}
+            className='bg-gray-200 p-4 rounded-md cursor-pointer hover:bg-gray-300'
+            onClick={() => window.open(file.url, '_blank')}
+          >
+            <span>{file.name}</span>
+            <button
+              onClick={() => handleFileDelete(file.name)}
+              className='text-red-700 underline ml-2 cursor-pointer'
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
