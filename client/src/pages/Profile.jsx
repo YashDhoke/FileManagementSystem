@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, list, deleteObject } from 'firebase/storage';
 import { app } from '../firebase';
-// import { signOutUserStart } from '../redux/user/userSlice';
 import { Link } from 'react-router-dom';
+import { signOutUserFailure, signOutUserSuccess , signOutUserStart } from '../redux/user/userSlice';
 
 export default function Profile() {
   const fileRef = useRef(null);
@@ -96,11 +96,21 @@ export default function Profile() {
   const handleSignOut = async () => {
     try {
       dispatch(signOutUserStart());
-      // Additional sign-out logic if needed
+      const res = await fetch('/api/auth/signout');
+      const data = await res.json();
+      console.log('Sign out response:', data); // Add this line for debugging
+  
+      if (data.success === false) {
+        dispatch(signOutUserFailure(data.message));
+        return;
+      }
+      dispatch(signOutUserSuccess(data));
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error during sign out:', error); // Add this line for debugging
+      dispatch(signOutUserFailure(error.message));
     }
   };
+  
 
   return (
     <div className='h-screen p-6'>
