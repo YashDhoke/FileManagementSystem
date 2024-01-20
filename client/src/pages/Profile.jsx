@@ -41,7 +41,6 @@ export default function Profile() {
 
       const storage = getStorage(app);
 
-      // Iterate through each selected file and upload
       files.forEach(async (file) => {
         const fileName = currentUser.uid + '_' + new Date().getTime() + '_' + file.name;
         const storageRef = ref(storage, fileName);
@@ -134,7 +133,7 @@ export default function Profile() {
             <div className='text-lg font-semibold mb-2'>{file.name}</div>
             <button
               onClick={() => viewFile(file)}
-              className='text-blue-700 underline cursor-pointer'
+              className='text-blue-700 underline cursor-pointer mx-5'
             >
               View
             </button>
