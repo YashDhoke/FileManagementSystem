@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, list, deleteObject } from 'firebase/storage';
 import { app } from '../firebase';
+// import { signOutUserStart } from '../redux/user/userSlice';
+import { Link } from 'react-router-dom';
 
 export default function Profile() {
   const fileRef = useRef(null);
@@ -10,6 +12,7 @@ export default function Profile() {
   const [filePerc, setFilePerc] = useState(0);
   const [fileUploadError, setFileUploadError] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const dispatch = useDispatch();
 
   const fetchFiles = async () => {
     try {
@@ -41,8 +44,8 @@ export default function Profile() {
 
       const storage = getStorage(app);
 
-      files.forEach(async (file) => {
-        const fileName = currentUser.uid + '_' + new Date().getTime() + '_' + file.name;
+      await Promise.all(files.map(async (file) => {
+        const fileName = `${currentUser.uid}_${new Date().getTime()}_${file.name}`;
         const storageRef = ref(storage, fileName);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -60,11 +63,11 @@ export default function Profile() {
           async () => {
             console.log('File uploaded successfully:', fileName);
             setFiles([]);
-            setFilePerc(0); // Reset progress after successful upload
-            fetchFiles(); // Refresh the file list
+            setFilePerc(0);
+            fetchFiles();
           }
         );
-      });
+      }));
     } catch (error) {
       console.error('Error handling file upload:', error);
       setFileUploadError(true);
@@ -76,7 +79,7 @@ export default function Profile() {
       const storage = getStorage(app);
       const storageRef = ref(storage, currentUser.uid + '/' + fileName);
       await deleteObject(storageRef);
-      fetchFiles(); // Refresh the file list after deletion
+      fetchFiles();
     } catch (error) {
       console.error('Error deleting file:', error);
     }
@@ -90,8 +93,24 @@ export default function Profile() {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      dispatch(signOutUserStart());
+      // Additional sign-out logic if needed
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <div className='h-screen p-6'>
+      <div className='flex justify-between items-center mb-4'>
+        <h1 className='text-3xl font-semibold'>Profile</h1>
+        <span onClick={handleSignOut} className='text-red-700 cursor-pointer'>
+          Sign out
+        </span>
+      </div>
+
       <div className='max-w-lg mx-auto'>
         <div className='flex items-center space-x-4 mb-4'>
           <input
